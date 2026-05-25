@@ -1,0 +1,45 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: cart-service-pod-delete
+  namespace: litmus
+spec:
+  appinfo:
+    appns: 'default'
+    applabel: 'app=cart-service'
+    appkind: 'deployment'
+  annotationCheck: 'true'
+  engineState: 'active'
+  chaosServiceAccount: litmus-admin
+  monitoring: true
+  jobCleanUpPolicy: 'delete'
+  experiments:
+    - name: pod-delete
+      spec:
+        components:
+          env:
+            - name: TOTAL_CHAOS_DURATION
+              value: '600'
+            - name: CHAOS_INTERVAL
+              value: '30'
+            - name: FORCE
+              value: 'false'
+            - name: PODS_AFFECTED_PERC
+              value: '30'
+          probe:
+            - name: "check-cart-service-health"
+              type: "promProbe"
+              mode: "Continuous"
+              runProperties:
+                probeTimeout: "5s"
+                retry: 2
+                interval: "5s"
+                probePollingInterval: "2s"
+                initialDelay: "5s"
+              promProbe/inputs:
+                endpoint: "http://prometheus:9090"
+                query: |
+                  sum(rate(http_requests_total{service="cart-service",status=~"5.."}[1m])) / sum(rate(http_requests_total{service="cart-service"}[1m]))
+                comparator:
+                  criteria: "<"
+                  value: "0.05"

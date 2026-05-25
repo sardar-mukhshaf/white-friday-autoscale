@@ -1,0 +1,44 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: zone-down-simulation
+  namespace: litmus
+spec:
+  appinfo:
+    appns: 'default'
+    applabel: 'app in (frontend,product-service,cart-service,order-service,payment-service)'
+    appkind: 'deployment'
+  annotationCheck: 'true'
+  engineState: 'active'
+  chaosServiceAccount: litmus-admin
+  monitoring: true
+  jobCleanUpPolicy: 'delete'
+  experiments:
+    - name: pod-cpu-hog
+      spec:
+        components:
+          env:
+            - name: CPU_CORES
+              value: '2'
+            - name: TOTAL_CHAOS_DURATION
+              value: '600'
+            - name: CHAOS_INTERVAL
+              value: '60'
+            - name: PODS_AFFECTED_PERC
+              value: '50'
+          probe:
+            - name: "check-hpa-reaction"
+              type: "promProbe"
+              mode: "Continuous"
+              runProperties:
+                probeTimeout: "10s"
+                retry: 3
+                interval: "10s"
+                initialDelay: "30s"
+              promProbe/inputs:
+                endpoint: "http://prometheus:9090"
+                query: |
+                  sum(kube_deployment_status_replicas{deployment=~".*service"}) / sum(kube_deployment_spec_replicas{deployment=~".*service"})
+                comparator:
+                  criteria: ">"
+                  value: "0.8"

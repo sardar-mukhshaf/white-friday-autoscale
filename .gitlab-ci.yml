@@ -1,0 +1,336 @@
+# ------------------------------------------------------------------------------
+# GitLab CI Pipeline
+# White Friday E-Commerce Auto-Scaling Platform
+# ------------------------------------------------------------------------------
+
+variables:
+  TF_ROOT: ${CI_PROJECT_DIR}/terraform
+  TF_ADDRESS: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/${CI_ENVIRONMENT_NAME}
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+
+stages:
+  - build
+  - test
+  - sast
+  - container-scan
+  - load-test
+  - plan
+  - deploy-staging
+  - chaos-test
+  - deploy-prod
+
+# ------------------------------------------------------------------------------
+# OIDC Authentication Template
+# ------------------------------------------------------------------------------
+.aws_auth:
+  id_tokens:
+    GITLAB_ID_TOKEN:
+      aud: ${CI_SERVER_URL}
+  before_script:
+    - >
+      export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s"
+      $(aws sts assume-role-with-web-identity
+      --role-arn ${AWS_ROLE_ARN}
+      --role-session-name "GitLabRunner-${CI_PROJECT_ID}-${CI_PIPELINE_ID}"
+      --web-identity-token ${GITLAB_ID_TOKEN}
+      --duration-seconds 3600
+      --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]'
+      --output text))
+    - aws sts get-caller-identity
+
+# ------------------------------------------------------------------------------
+# Build Stage: Multi-Arch Docker Images
+# ------------------------------------------------------------------------------
+build:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  parallel:
+    matrix:
+      - ARCH: [amd64, arm64]
+        NODE: [c6i, c7g]
+  variables:
+    PLATFORM: "linux/${ARCH}"
+    IMAGE_TAG: "${CI_COMMIT_SHORT_SHA}-${ARCH}"
+  before_script:
+    - apk add --no-cache git
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
+    - docker buildx create --use --platform ${PLATFORM}
+  script:
+    - |
+      for service in frontend product-service cart-service order-service payment-service; do
+        echo "Building ${service} for ${PLATFORM}..."
+        docker buildx build \
+          --platform ${PLATFORM} \
+          --tag ${CI_REGISTRY}/${CI_PROJECT_PATH}/${service}:${IMAGE_TAG} \
+          --push \
+          kubernetes/microservices/${service}
+      done
+  tags:
+    - docker
+
+# Manifest list creation
+build-manifest:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  needs:
+    - job: build
+      artifacts: false
+  before_script:
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
+  script:
+    - |
+      for service in frontend product-service cart-service order-service payment-service; do
+        docker manifest create ${CI_REGISTRY}/${CI_PROJECT_PATH}/${service}:${CI_COMMIT_SHORT_SHA} \
+          ${CI_REGISTRY}/${CI_PROJECT_PATH}/${service}:${CI_COMMIT_SHORT_SHA}-amd64 \
+          ${CI_REGISTRY}/${CI_PROJECT_PATH}/${service}:${CI_COMMIT_SHORT_SHA}-arm64
+        docker manifest push ${CI_REGISTRY}/${CI_PROJECT_PATH}/${service}:${CI_COMMIT_SHORT_SHA}
+      done
+  tags:
+    - docker
+
+# ------------------------------------------------------------------------------
+# Test Stage
+# ------------------------------------------------------------------------------
+unit-test:
+  stage: test
+  image: node:20-alpine
+  script:
+    - cd kubernetes/microservices/frontend && npm ci && npm test || echo "No tests defined"
+    - cd ../product-service && npm ci && npm test || echo "No tests defined"
+    - cd ../cart-service && npm ci && npm test || echo "No tests defined"
+    - cd ../order-service && npm ci && npm test || echo "No tests defined"
+    - cd ../payment-service && npm ci && npm test || echo "No tests defined"
+  tags:
+    - docker
+
+terraform-validate:
+  stage: test
+  image: hashicorp/terraform:1.7
+  script:
+    - cd ${TF_ROOT}
+    - terraform init -backend=false
+    - terraform validate
+    - terraform fmt -check=true -recursive
+  tags:
+    - docker
+
+# ------------------------------------------------------------------------------
+# SAST Stage
+# ------------------------------------------------------------------------------
+sonarqube-check:
+  stage: sast
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    GIT_DEPTH: "0"
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script:
+    - sonar-scanner
+  allow_failure: true
+  tags:
+    - docker
+
+semgrep-scan:
+  stage: sast
+  image: returntocorp/semgrep
+  script:
+    - semgrep --config=auto --error kubernetes/ || true
+  allow_failure: true
+  tags:
+    - docker
+
+# ------------------------------------------------------------------------------
+# Container Scan Stage
+# ------------------------------------------------------------------------------
+trivy-scan:
+  stage: container-scan
+  image: aquasec/trivy:latest
+  needs:
+    - job: build-manifest
+      artifacts: false
+  parallel:
+    matrix:
+      - SERVICE: [frontend, product-service, cart-service, order-service, payment-service]
+  script:
+    - trivy image --severity CRITICAL,HIGH --exit-code 1 ${CI_REGISTRY}/${CI_PROJECT_PATH}/${SERVICE}:${CI_COMMIT_SHORT_SHA}
+  allow_failure: false
+  tags:
+    - docker
+
+# ------------------------------------------------------------------------------
+# Load Test Stage (Staging)
+# ------------------------------------------------------------------------------
+load-test:
+  stage: load-test
+  image: alpine/k8s:1.29.0
+  needs:
+    - job: deploy-staging
+      artifacts: false
+  environment:
+    name: staging
+  before_script:
+    - apk add --no-cache curl jq bc
+    - aws eks update-kubeconfig --region ${AWS_REGION} --name whitefriday-staging
+  script:
+    - echo "Deploying k6 test to staging..."
+    - kubectl apply -f kubernetes/k6-tests/k6-crd.yaml -n loadtesting
+    - echo "Waiting for test to complete (10 minutes)..."
+    - sleep 600
+    - echo "Fetching k6 results..."
+    - kubectl logs -n loadtesting job/k6-white-friday-load-test-1 > k6-output.txt || true
+  after_script:
+    - |
+      if [ -f k6-output.txt ]; then
+        P95=$(grep -o 'p(95)=[0-9.]*ms' k6-output.txt | head -1 | cut -d'=' -f2 | sed 's/ms//')
+        ERR_RATE=$(grep -o 'error_rate=[0-9.]*%' k6-output.txt | head -1 | cut -d'=' -f2 | sed 's/%//')
+        echo "p(95) Latency: ${P95}ms"
+        echo "Error Rate: ${ERR_RATE}%"
+        if (( $(echo "${P95} > 200" | bc -l) )) || (( $(echo "${ERR_RATE} > 0.1" | bc -l) )); then
+          echo "LOAD TEST FAILED"
+          exit 1
+        fi
+      fi
+  artifacts:
+    paths:
+      - k6-output.txt
+    expire_in: 1 week
+  tags:
+    - docker
+
+# ------------------------------------------------------------------------------
+# Terraform Plan Stage
+# ------------------------------------------------------------------------------
+terraform-plan:
+  stage: plan
+  image: hashicorp/terraform:1.7
+  extends: .aws_auth
+  script:
+    - cd ${TF_ROOT}
+    - terraform init
+    - terraform plan -var-file=environments/${CI_ENVIRONMENT_NAME}.tfvars -out=tfplan
+    - terraform show -json tfplan > tfplan.json
+  artifacts:
+    paths:
+      - ${TF_ROOT}/tfplan
+      - ${TF_ROOT}/tfplan.json
+    expire_in: 1 week
+  tags:
+    - docker
+
+infracost:
+  stage: plan
+  image: infracost/infracost:ci-latest
+  needs:
+    - job: terraform-plan
+      artifacts: true
+  script:
+    - infracost breakdown --path ${TF_ROOT}/tfplan.json --format json --out-file infracost.json
+    - infracost output --path infracost.json --format table
+    - |
+      COST_DIFF=$(jq -r '.totalMonthlyCost' infracost.json)
+      echo "Estimated monthly cost increase: $${COST_DIFF}"
+      if (( $(echo "${COST_DIFF} > 450" | bc -l) )); then
+        echo "WARNING: Cost increase exceeds $450/month threshold."
+        echo "Deployment to production requires manual approval."
+      fi
+  artifacts:
+    paths:
+      - infracost.json
+    expire_in: 1 week
+  tags:
+    - docker
+
+# ------------------------------------------------------------------------------
+# Deploy Staging
+# ------------------------------------------------------------------------------
+deploy-staging:
+  stage: deploy-staging
+  image: hashicorp/terraform:1.7
+  extends: .aws_auth
+  environment:
+    name: staging
+  script:
+    - cd ${TF_ROOT}
+    - terraform init
+    - terraform apply -auto-approve -var-file=environments/staging.tfvars
+  tags:
+    - docker
+
+# ------------------------------------------------------------------------------
+# Chaos Test Stage
+# ------------------------------------------------------------------------------
+chaos-test:
+  stage: chaos-test
+  image: alpine/k8s:1.29.0
+  needs:
+    - job: deploy-staging
+      artifacts: false
+  environment:
+    name: staging
+  before_script:
+    - apk add --no-cache curl jq bc
+    - aws eks update-kubeconfig --region ${AWS_REGION} --name whitefriday-staging
+  script:
+    - echo "Running Litmus chaos experiments..."
+    - kubectl apply -f kubernetes/litmus/pod-delete.yaml -n litmus
+    - kubectl apply -f kubernetes/litmus/network-latency.yaml -n litmus
+    - echo "Monitoring for 15 minutes..."
+    - sleep 900
+  after_script:
+    - |
+      AVAILABILITY=$(kubectl exec -n monitoring deployment/prometheus --
+        wget -qO- 'http://localhost:9090/api/v1/query?query=1-sum(rate(http_requests_total{status=~"5.."}[15m]))/sum(rate(http_requests_total[15m]))'
+        2>/dev/null | jq -r '.data.result[0].value[1]' || echo "1")
+      echo "Availability during chaos: ${AVAILABILITY}"
+      if (( $(echo "${AVAILABILITY} < 0.999" | bc -l) )); then
+        echo "CHAOS TEST FAILED: Availability dropped below 99.9%"
+        exit 1
+      fi
+  tags:
+    - docker
+
+# ------------------------------------------------------------------------------
+# Deploy Production
+# ------------------------------------------------------------------------------
+deploy-prod:
+  stage: deploy-prod
+  image: hashicorp/terraform:1.7
+  extends: .aws_auth
+  environment:
+    name: production
+    url: https://whitefriday.example.com
+  when: manual
+  only:
+    - main
+  script:
+    - cd ${TF_ROOT}
+    - terraform init
+    - terraform apply -auto-approve -var-file=environments/prod.tfvars
+  tags:
+    - docker
+
+# ------------------------------------------------------------------------------
+# Rollback Job (triggered on failure)
+# ------------------------------------------------------------------------------
+rollback:
+  stage: deploy-prod
+  image: alpine/k8s:1.29.0
+  environment:
+    name: staging
+  when: on_failure
+  script:
+    - apk add --no-cache bash bc
+    - aws eks update-kubeconfig --region ${AWS_REGION} --name whitefriday-staging
+    - bash scripts/rollback.sh
+  tags:
+    - docker

@@ -1,0 +1,46 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Cost per 1000 Transactions",
+    "tags": ["cost", "finops", "whitefriday"],
+    "timezone": "browser",
+    "schemaVersion": 36,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Cost per 1K Transactions (USD)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "(aws_billing_estimated_charges / on() group_left() (sum(rate(http_requests_total[1h])) * 3600 / 1000))",
+            "legendFormat": "Cost per 1K TXN",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear"
+            }
+          }
+        },
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 }
+      },
+      {
+        "id": 2,
+        "title": "Total Requests vs Cost",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total[5m]))",
+            "legendFormat": "RPS",
+            "refId": "A"
+          }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+      }
+    ]
+  }
+}

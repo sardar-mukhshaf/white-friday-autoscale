@@ -1,0 +1,30 @@
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: spot-general
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        name: default
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64", "arm64"]
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: ["c7g.large", "c7g.xlarge", "m7g.large", "m7g.xlarge", "c6i.large", "c6i.xlarge", "m6i.large"]
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values: ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
+      taints: []
+  limits:
+    cpu: 1000
+    memory: 4000Gi
+  disruption:
+    consolidationPolicy: WhenUnderutilized
+    expireAfter: 720h
+  weight: 10

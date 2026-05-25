@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'frontend'
+    static_configs:
+      - targets: ['frontend:3000']
+
+  - job_name: 'product-service'
+    static_configs:
+      - targets: ['product-service:8080']
+
+  - job_name: 'cart-service'
+    static_configs:
+      - targets: ['cart-service:8080']
+
+  - job_name: 'order-service'
+    static_configs:
+      - targets: ['order-service:8080']
+
+  - job_name: 'payment-service'
+    static_configs:
+      - targets: ['payment-service:8080']

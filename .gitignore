@@ -1,0 +1,46 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan.json
+crash.log
+crash.*.log
+.terraform.lock.hcl
+*.tfvars
+!terraform/terraform.tfvars
+!terraform/environments/*.tfvars
+!infracost/usage.tfvars
+
+# Kubernetes
+kubeconfig*
+*.kubeconfig
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Load test results
+load-test-results/
+
+# Infracost
+infracost.json
+
+# Local env files
+.env
+.envrc
+
+# Secrets (should never be committed)
+secrets/
+*.pem
+*.key

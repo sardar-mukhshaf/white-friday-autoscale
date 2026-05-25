@@ -1,0 +1,33 @@
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: on-demand-critical
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        name: default
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64", "arm64"]
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: ["t3.large", "t3.xlarge", "m6i.large", "m6i.xlarge", "c6i.large"]
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values: ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
+      taints:
+        - key: workload-type
+          value: critical
+          effect: NoSchedule
+  limits:
+    cpu: 250
+    memory: 1000Gi
+  disruption:
+    consolidationPolicy: WhenEmpty
+    expireAfter: 720h
+  weight: 50

@@ -1,0 +1,27 @@
+{
+  "Name": "WhiteFridayRateLimiting",
+  "Priority": 1,
+  "Statement": {
+    "RateBasedStatement": {
+      "Limit": 2000,
+      "AggregateKeyType": "IP",
+      "ScopeDownStatement": {
+        "NotStatement": {
+          "Statement": {
+            "IPSetReferenceStatement": {
+              "ARN": "arn:aws:wafv2:REGION:ACCOUNT:regional/ipset/whitelist/ID"
+            }
+          }
+        }
+      }
+    }
+  },
+  "Action": {
+    "Block": {}
+  },
+  "VisibilityConfig": {
+    "SampledRequestsEnabled": true,
+    "CloudWatchMetricsEnabled": true,
+    "MetricName": "RateLimitRuleMetric"
+  }
+}

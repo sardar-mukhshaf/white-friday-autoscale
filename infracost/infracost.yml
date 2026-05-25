@@ -1,0 +1,21 @@
+version: 0.1
+
+projects:
+  - path: terraform
+    terraform_workspace: default
+    usage_file: infracost/usage.tfvars
+
+usage_file:
+  path: infracost/usage.tfvars
+
+dashboard:
+  enabled: true
+
+policies:
+  - name: CostIncreaseLimit
+    description: Block PR if cost increase exceeds threshold
+    file: infracost/cost-policy.rego
+
+output:
+  format: table
+  show_skipped: true

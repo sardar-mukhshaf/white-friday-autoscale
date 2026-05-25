@@ -1,0 +1,24 @@
+apiVersion: k6.io/v1alpha1
+kind: K6
+metadata:
+  name: white-friday-load-test
+  namespace: loadtesting
+spec:
+  parallelism: 10
+  script:
+    configMap:
+      name: k6-test-scripts
+      file: white-friday-load-test.js
+  arguments: --out influxdb=http://influxdb:8086/k6
+  runner:
+    env:
+      - name: BASE_URL
+        value: "https://whitefriday.example.com"
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "1000m"
+        memory: "1Gi"
+  separate: false

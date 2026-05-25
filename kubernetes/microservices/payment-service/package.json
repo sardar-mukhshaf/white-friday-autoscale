@@ -1,0 +1,13 @@
+{
+  "name": "whitefriday-payment-service",
+  "version": "1.0.0",
+  "description": "White Friday Payment Service",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "prom-client": "^15.1.0"
+  }
+}

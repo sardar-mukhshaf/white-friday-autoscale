@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - PRODUCT_SERVICE_URL=http://product-service:8080
+      - CART_SERVICE_URL=http://cart-service:8080
+      - ORDER_SERVICE_URL=http://order-service:8080
+    depends_on:
+      - product-service
+      - cart-service
+      - order-service
+      - payment-service
+    networks:
+      - whitefriday
+
+  product-service:
+    build: ./product-service
+    ports:
+      - "8081:8080"
+    environment:
+      - PORT=8080
+    networks:
+      - whitefriday
+
+  cart-service:
+    build: ./cart-service
+    ports:
+      - "8082:8080"
+    environment:
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - whitefriday
+
+  order-service:
+    build: ./order-service
+    ports:
+      - "8083:8080"
+    environment:
+      - PORT=8080
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=whitefriday
+      - DB_USER=admin
+      - DB_PASSWORD=password
+    depends_on:
+      - postgres
+    networks:
+      - whitefriday
+
+  payment-service:
+    build: ./payment-service
+    ports:
+      - "8084:8080"
+    environment:
+      - PORT=8080
+    networks:
+      - whitefriday
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - whitefriday
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=whitefriday
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - whitefriday
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - whitefriday
+
+  grafana:
+    image: grafana/grafana:10.2.3
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - whitefriday
+
+networks:
+  whitefriday:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  grafana_data:

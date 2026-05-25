@@ -1,0 +1,37 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ElastiCacheRedis",
+      "Effect": "Allow",
+      "Action": [
+        "elasticache:DescribeReplicationGroups"
+      ],
+      "Resource": "arn:aws:elasticache:*:*:replicationgroup:whitefriday-*"
+    },
+    {
+      "Sid": "SecretsManagerRead",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": [
+        "arn:aws:secretsmanager:*:*:secret:whitefriday/*/redis-auth-token-*",
+        "arn:aws:secretsmanager:*:*:secret:whitefriday/*/cart-service-*"
+      ]
+    },
+    {
+      "Sid": "DynamoDBAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": "arn:aws:dynamodb:*:*:table/whitefriday-*-inventory"
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "White Friday SLO Dashboard",
+    "tags": ["slo", "reliability", "whitefriday"],
+    "timezone": "browser",
+    "schemaVersion": 36,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Availability (99.9% SLO)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "1 - (sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m])))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "thresholds": {
+              "steps": [
+                { "color": "red", "value": 0 },
+                { "color": "yellow", "value": 0.995 },
+                { "color": "green", "value": 0.999 }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 }
+      },
+      {
+        "id": 2,
+        "title": "Error Budget Burn Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "(1 - 0.999) - (sum(rate(http_requests_total{status=~\"5..\"}[1h])) / sum(rate(http_requests_total[1h])))",
+            "legendFormat": "Error Budget Remaining",
+            "refId": "A"
+          }
+        ],
+        "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 }
+      },
+      {
+        "id": 3,
+        "title": "Latency Percentiles",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p99",
+            "refId": "C"
+          }
+        ],
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 }
+      }
+    ]
+  }
+}

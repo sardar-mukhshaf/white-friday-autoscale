@@ -1,0 +1,21 @@
+{
+  "Name": "GeoBlockRule",
+  "Priority": 2,
+  "Statement": {
+    "NotStatement": {
+      "Statement": {
+        "GeoMatchStatement": {
+          "CountryCodes": ["SA", "AE", "BH", "KW", "EG"]
+        }
+      }
+    }
+  },
+  "Action": {
+    "Block": {}
+  },
+  "VisibilityConfig": {
+    "SampledRequestsEnabled": true,
+    "CloudWatchMetricsEnabled": true,
+    "MetricName": "GeoBlockRuleMetric"
+  }
+}

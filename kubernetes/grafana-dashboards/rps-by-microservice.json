@@ -1,0 +1,45 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "RPS by Microservice",
+    "tags": ["rps", "performance", "whitefriday"],
+    "timezone": "browser",
+    "schemaVersion": 36,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Requests per Second",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total[1m])) by (service)",
+            "legendFormat": "{{ service }}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "custom": {
+              "drawStyle": "line"
+            }
+          }
+        },
+        "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 }
+      },
+      {
+        "id": 2,
+        "title": "Error Rate by Service",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m])) by (service) / sum(rate(http_requests_total[1m])) by (service)",
+            "legendFormat": "{{ service }}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 }
+      }
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: default
+spec:
+  minAvailable: 50%
+  selector:
+    matchLabels:
+      app: frontend
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cart-service-pdb
+  namespace: default
+spec:
+  minAvailable: 50%
+  selector:
+    matchLabels:
+      app: cart-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: order-service-pdb
+  namespace: default
+spec:
+  minAvailable: 50%
+  selector:
+    matchLabels:
+      app: order-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: payment-service-pdb
+  namespace: default
+spec:
+  minAvailable: 50%
+  selector:
+    matchLabels:
+      app: payment-service

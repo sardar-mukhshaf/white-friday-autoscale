@@ -1,0 +1,50 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: payment-network-latency
+  namespace: litmus
+spec:
+  appinfo:
+    appns: 'default'
+    applabel: 'app=payment-service'
+    appkind: 'deployment'
+  annotationCheck: 'true'
+  engineState: 'active'
+  chaosServiceAccount: litmus-admin
+  monitoring: true
+  jobCleanUpPolicy: 'delete'
+  experiments:
+    - name: network-latency
+      spec:
+        components:
+          env:
+            - name: TARGET_CONTAINER
+              value: 'payment-service'
+            - name: NETWORK_INTERFACE
+              value: 'eth0'
+            - name: LIB_IMAGE
+              value: 'litmuschaos/go-runner:latest'
+            - name: TC_IMAGE
+              value: 'gaiadocker/iproute2'
+            - name: NETWORK_LATENCY
+              value: '500'
+            - name: TOTAL_CHAOS_DURATION
+              value: '900'
+            - name: RAMP_TIME
+              value: '30'
+          probe:
+            - name: "check-payment-latency"
+              type: "promProbe"
+              mode: "Edge"
+              runProperties:
+                probeTimeout: "10s"
+                retry: 3
+                interval: "5s"
+                initialDelay: "5s"
+              promProbe/inputs:
+                endpoint: "http://prometheus:9090"
+                query: |
+                  histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service="payment-service"}[2m])) by (le))
+                comparator:
+                  criteria: "<"
+                  value: "2.0"
