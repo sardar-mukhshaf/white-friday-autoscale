@@ -1,4 +1,6 @@
-# White Friday Auto-Scaling E-Commerce Platform
+# White Friday ENGINE
+
+---
 
 ## Table of Contents
 
