@@ -4,16 +4,16 @@
 
 ## Table of Contents
 
-1. [🚀 Quick Start — Just Change ONE File](#-quick-start--just-change-one-file)
-2. [🤔 What Is This Project?](#-wtf-is-this-project)
-3. [📖 Step-by-Step: What Happens When You Run This](#-step-by-step-what-happens-when-you-run-this)
-4. [🔭 Behind the Scenes — Every Layer Explained](#-behind-the-scenes--every-layer-explained)
-5. [What is this Project?](#what-is-this-project)
-6. [Why This Project Exists](#why-this-project-exists)
-7. [Who Should Use This](#who-should-use-this)
-8. [When to Use This](#when-to-use-this)
-9. [Architecture Overview](#architecture-overview)
-10. [White Friday Scaling Strategy](#white-friday-scaling-strategy)
+1. [🤔 What Is This Project?](#-wtf-is-this-project)
+2. [What is this Project?](#what-is-this-project)
+3. [Why This Project Exists](#why-this-project-exists)
+4. [Who Should Use This](#who-should-use-this)
+5. [When to Use This](#when-to-use-this)
+6. [📖 Step-by-Step: What Happens When You Run This](#-step-by-step-what-happens-when-you-run-this)
+7. [🔭 Behind the Scenes — Every Layer Explained](#-behind-the-scenes--every-layer-explained)
+8. [Architecture Overview](#architecture-overview)
+9. [White Friday Scaling Strategy](#white-friday-scaling-strategy)
+10. [🚀 Quick Start — Just Change ONE File](#-quick-start--just-change-one-file)
 11. [Project Structure](#project-structure)
 12. [Getting Started](#getting-started)
 13. [Multi-Arch & Graviton3 Guide](#multi-arch--graviton3-guide)
@@ -29,66 +29,6 @@
 23. [Security & Compliance](#security--compliance)
 24. [Contributing](#contributing)
 25. [License](#license)
-
----
-
-## 🚀 Quick Start — Just Change ONE File
-
-> **You only ever need to touch a single file to make this entire project work for your setup.**
-
-Open this file:
-
-```
-terraform/terraform.tfvars
-```
-
-Change these values to match your situation:
-
-```hcl
-# Your project name — used in naming every AWS resource
-project_name = "whitefriday"
-
-# Which environment you are deploying (dev / staging / prod)
-environment = "dev"
-
-# Which AWS region to deploy into
-region = "eu-west-1"
-
-# Your team's email + cost centre
-common_tags = {
-  Owner      = "your-email@example.com"
-  CostCenter = "your-team"
-}
-
-# Your GitLab server URL (leave as-is if using gitlab.com)
-gitlab_url = "https://gitlab.com"
-
-# The AWS Secrets Manager ARN that holds your GitLab runner token
-runner_token_secret_arn = "arn:aws:secretsmanager:eu-west-1:123456789:secret:..."
-
-# Your PagerDuty integration key (for alerts)
-pagerduty_service_key = "your-pagerduty-key"
-```
-
-That is it. Every other setting — database sizes, load test user counts, chaos experiments, scaling limits, WAF rules — is already in that file with sensible defaults. **You do not need to touch any other code file.**
-
-For per-environment overrides (dev vs staging vs prod), edit:
-
-```
-terraform/environments/dev.tfvars
-terraform/environments/staging.tfvars
-terraform/environments/prod.tfvars
-```
-
-Then run:
-
-```bash
-make bootstrap          # one-time: creates S3 bucket + DynamoDB for state
-make preflight          # checks your AWS account is ready
-make apply ENVIRONMENT=dev
-```
-
-Done. Your entire cloud platform is live.
 
 ---
 
@@ -113,6 +53,73 @@ It automatically:
 Think of it like a rubber band website. On normal days it is small. On White Friday it stretches to 1,000× its size — automatically, in under 2 minutes — then snaps back when the sale is over.
 
 **This project is the rubber band.**
+
+---
+
+## What is this Project?
+
+This project is a **production-ready, enterprise-grade AWS infrastructure blueprint** designed for high-velocity e-commerce platforms operating at the scale of Noon, Amazon.sa, Jarir, and Extra Store. It simulates a complete e-commerce ecosystem that must handle the explosive traffic surges characteristic of "White Friday" (the Middle East's equivalent of Black Friday), scaling from **10 to 10,000 pods in under 2 minutes**.
+
+The platform includes:
+
+- **Terraform modules** for VPC, EKS with Karpenter, databases, security, CI/CD, observability, load testing, chaos engineering, and FinOps
+- **Kubernetes manifests** for Karpenter NodePools, HPA configurations, NetworkPolicies, and PodDisruptionBudgets
+- **Sample microservices** (frontend, product, cart, order, payment) built with Node.js/Express
+- **Load testing suites** using k6 and Locust for distributed high-concurrency simulation
+- **Chaos engineering experiments** using LitmusChaos for resilience validation
+- **Grafana dashboards** provisioned for cost, performance, scaling velocity, and SLO monitoring
+- **GitLab CI pipeline** with matrix builds, SAST, container scanning, automated load tests, and cost gates
+
+**Every value is driven from `terraform/terraform.tfvars`.** No hardcoded values exist in modules or scripts.
+
+---
+
+## Why This Project Exists
+
+Saudi and GCC e-commerce platforms face unique technical challenges:
+
+1. **Massive traffic spikes**: White Friday can drive 50-100× normal traffic within minutes
+2. **Cost sensitivity**: Infrastructure spend must be optimized while maintaining 99.9% availability
+3. **Geographic constraints**: Primary traffic from KSA, UAE, Bahrain, Kuwait, and Egypt
+4. **Multi-architecture needs**: Graviton3 (ARM64) instances reduce compute costs by 20-40%
+5. **Regulatory requirements**: Data residency, encryption, and geo-blocking mandates
+6. **Resilience expectations**: Payment flows cannot fail; cart abandonment costs millions
+
+Traditional Cluster Autoscaler is too slow for these velocity requirements. This project replaces it entirely with **Karpenter v0.34+**, leveraging consolidation, spot/on-demand mixing, and over-provisioning to achieve sub-2-minute scale-ups.
+
+---
+
+## Who Should Use This
+
+This project is designed for:
+
+- **Principal Cloud Architects** designing greenfield e-commerce platforms in AWS
+- **SREs** building auto-scaling, self-healing production systems
+- **Platform Engineers** standardizing infrastructure-as-code across dev/staging/prod
+- **DevOps Engineers** implementing GitOps, CI/CD, and automated rollbacks
+- **Interview candidates** demonstrating production-grade Terraform, Kubernetes, and AWS expertise
+- **Startups** in MENA preparing for seasonal traffic events
+
+**Prerequisites:**
+
+- Terraform ~> 1.7
+- AWS CLI configured with appropriate permissions
+- kubectl
+- Docker with Buildx (for multi-arch builds)
+- GitLab CI or ability to adapt to GitHub Actions
+
+---
+
+## When to Use This
+
+Use this project when:
+
+- You need to **prove infrastructure can scale** from 10 to 10,000 pods rapidly
+- You are **preparing for seasonal events** (White Friday, Ramadan, National Day sales)
+- You want to **standardize** modular Terraform across multiple environments
+- You need **cost visibility** via Infracost integration and anomaly detection
+- You must **validate resilience** via chaos engineering before production
+- You want a **recruiter-ready portfolio project** demonstrating enterprise SRE skills
 
 ---
 
@@ -260,7 +267,7 @@ The `database` module runs:
 Five mini-applications are deployed to Kubernetes:
 
 | Service             | What it does                           | Where data lives  |
-| ------------------- | -------------------------------------- | ----------------- |
+| ------------------- | --------------------------------------- | ------------------ |
 | **Frontend**        | The website users see                  | —                 |
 | **Product Service** | Shows product listings, search, prices | DynamoDB          |
 | **Cart Service**    | Manages shopping cart                  | Redis             |
@@ -328,7 +335,7 @@ The `chaos` module sets up LitmusChaos. Chaos engineering means **deliberately b
 Experiments are listed in `terraform.tfvars` under `experiments_list`:
 
 | Experiment        | What it does                                | Why                                              |
-| ----------------- | ------------------------------------------- | ------------------------------------------------ |
+| ------------------ | -------------------------------------------- | -------------------------------------------------- |
 | `pod-delete`      | Randomly kills cart service pods            | Verifies Kubernetes restarts them within seconds |
 | `network-latency` | Adds 500ms delay to payment → database      | Ensures payment doesn't time out                 |
 | `zone-down`       | Blocks traffic to one AWS availability zone | Verifies the other two zones handle the load     |
@@ -533,73 +540,6 @@ Resilience score is calculated and logged
 
 ---
 
-## What is this Project?
-
-This project is a **production-ready, enterprise-grade AWS infrastructure blueprint** designed for high-velocity e-commerce platforms operating at the scale of Noon, Amazon.sa, Jarir, and Extra Store. It simulates a complete e-commerce ecosystem that must handle the explosive traffic surges characteristic of "White Friday" (the Middle East's equivalent of Black Friday), scaling from **10 to 10,000 pods in under 2 minutes**.
-
-The platform includes:
-
-- **Terraform modules** for VPC, EKS with Karpenter, databases, security, CI/CD, observability, load testing, chaos engineering, and FinOps
-- **Kubernetes manifests** for Karpenter NodePools, HPA configurations, NetworkPolicies, and PodDisruptionBudgets
-- **Sample microservices** (frontend, product, cart, order, payment) built with Node.js/Express
-- **Load testing suites** using k6 and Locust for distributed high-concurrency simulation
-- **Chaos engineering experiments** using LitmusChaos for resilience validation
-- **Grafana dashboards** provisioned for cost, performance, scaling velocity, and SLO monitoring
-- **GitLab CI pipeline** with matrix builds, SAST, container scanning, automated load tests, and cost gates
-
-**Every value is driven from `terraform/terraform.tfvars`.** No hardcoded values exist in modules or scripts.
-
----
-
-## Why This Project Exists
-
-Saudi and GCC e-commerce platforms face unique technical challenges:
-
-1. **Massive traffic spikes**: White Friday can drive 50-100× normal traffic within minutes
-2. **Cost sensitivity**: Infrastructure spend must be optimized while maintaining 99.9% availability
-3. **Geographic constraints**: Primary traffic from KSA, UAE, Bahrain, Kuwait, and Egypt
-4. **Multi-architecture needs**: Graviton3 (ARM64) instances reduce compute costs by 20-40%
-5. **Regulatory requirements**: Data residency, encryption, and geo-blocking mandates
-6. **Resilience expectations**: Payment flows cannot fail; cart abandonment costs millions
-
-Traditional Cluster Autoscaler is too slow for these velocity requirements. This project replaces it entirely with **Karpenter v0.34+**, leveraging consolidation, spot/on-demand mixing, and over-provisioning to achieve sub-2-minute scale-ups.
-
----
-
-## Who Should Use This
-
-This project is designed for:
-
-- **Principal Cloud Architects** designing greenfield e-commerce platforms in AWS
-- **SREs** building auto-scaling, self-healing production systems
-- **Platform Engineers** standardizing infrastructure-as-code across dev/staging/prod
-- **DevOps Engineers** implementing GitOps, CI/CD, and automated rollbacks
-- **Interview candidates** demonstrating production-grade Terraform, Kubernetes, and AWS expertise
-- **Startups** in MENA preparing for seasonal traffic events
-
-**Prerequisites:**
-
-- Terraform ~> 1.7
-- AWS CLI configured with appropriate permissions
-- kubectl
-- Docker with Buildx (for multi-arch builds)
-- GitLab CI or ability to adapt to GitHub Actions
-
----
-
-## When to Use This
-
-Use this project when:
-
-- You need to **prove infrastructure can scale** from 10 to 10,000 pods rapidly
-- You are **preparing for seasonal events** (White Friday, Ramadan, National Day sales)
-- You want to **standardize** modular Terraform across multiple environments
-- You need **cost visibility** via Infracost integration and anomaly detection
-- You must **validate resilience** via chaos engineering before production
-- You want a **recruiter-ready portfolio project** demonstrating enterprise SRE skills
-
----
-
 ## Architecture Overview
 
 ```mermaid
@@ -700,7 +640,7 @@ The core challenge: **Scale from 10 to 10,000 pods in under 2 minutes.**
 ### How We Achieve This
 
 | Mechanism                          | Purpose                                                 | Time Impact                           |
-| ---------------------------------- | ------------------------------------------------------- | ------------------------------------- |
+| ----------------------------------- | --------------------------------------------------------- | ---------------------------------------- |
 | **Over-provisioning (Pause Pods)** | Maintain warm nodes ready for immediate scheduling      | Eliminates node provisioning time     |
 | **Karpenter NodePools**            | Direct EC2 provisioning without node group abstraction  | ~30-45 seconds vs 3-5 minutes for CAS |
 | **HPA Aggressive ScaleUp**         | 100 pods per 15 seconds, stabilizationWindow=0          | Immediate pod creation                |
@@ -745,6 +685,66 @@ Pods ready, traffic served
 - **`nodepool_limits_memory`**: Maximum total memory Karpenter can allocate
 - **`graviton3_percentage`**: How much of the fleet should be ARM64 (cheaper)
 - **`enable_spot`**: Whether to use spot instances for stateless workloads
+
+---
+
+## 🚀 Quick Start — Just Change ONE File
+
+> **You only ever need to touch a single file to make this entire project work for your setup.**
+
+Open this file:
+
+```
+terraform/terraform.tfvars
+```
+
+Change these values to match your situation:
+
+```hcl
+# Your project name — used in naming every AWS resource
+project_name = "whitefriday"
+
+# Which environment you are deploying (dev / staging / prod)
+environment = "dev"
+
+# Which AWS region to deploy into
+region = "eu-west-1"
+
+# Your team's email + cost centre
+common_tags = {
+  Owner      = "your-email@example.com"
+  CostCenter = "your-team"
+}
+
+# Your GitLab server URL (leave as-is if using gitlab.com)
+gitlab_url = "https://gitlab.com"
+
+# The AWS Secrets Manager ARN that holds your GitLab runner token
+runner_token_secret_arn = "arn:aws:secretsmanager:eu-west-1:123456789:secret:..."
+
+# Your PagerDuty integration key (for alerts)
+pagerduty_service_key = "your-pagerduty-key"
+```
+
+That is it. Every other setting — database sizes, load test user counts, chaos experiments, scaling limits, WAF rules — is already in that file with sensible defaults. **You do not need to touch any other code file.**
+
+For per-environment overrides (dev vs staging vs prod), edit:
+
+```
+terraform/environments/dev.tfvars
+terraform/environments/staging.tfvars
+terraform/environments/prod.tfvars
+```
+
+Then run:
+
+```bash
+make bootstrap          # one-time: creates S3 bucket + DynamoDB for state
+make preflight           # checks your AWS account is ready
+make apply ENVIRONMENT=dev
+```
+
+Done. Your entire cloud platform is live.
 
 ---
 
@@ -1009,7 +1009,7 @@ Controlled by `locust_workers` in `terraform.tfvars`.
 ### Interpreting Results
 
 | Metric        | Healthy | Warning    | Critical |
-| ------------- | ------- | ---------- | -------- |
+| -------------- | -------- | ----------- | --------- |
 | p(50) latency | < 50ms  | 50-100ms   | > 100ms  |
 | p(95) latency | < 200ms | 200-500ms  | > 500ms  |
 | p(99) latency | < 500ms | 500-1000ms | > 1000ms |
@@ -1071,7 +1071,7 @@ rollback:
 ### Experiments (configured via `experiments_list` in `terraform.tfvars`)
 
 | Experiment          | Target         | Frequency              | Safety Abort       |
-| ------------------- | -------------- | ---------------------- | ------------------ |
+| -------------------- | --------------- | ------------------------ | -------------------- |
 | **Pod Delete**      | Cart Service   | Every 10 min (staging) | Error rate > 5%    |
 | **Network Latency** | Payment -> RDS | 500ms injection        | p95 latency > 2s   |
 | **Zone Down**       | One AZ blocked | Scheduled nightly      | Availability < 99% |
@@ -1105,7 +1105,7 @@ Score = (availability_during_chaos * 0.4) +
 ```
 
 | Score       | Rating            |
-| ----------- | ----------------- |
+| ------------ | ------------------- |
 | 0.95 - 1.00 | Excellent         |
 | 0.80 - 0.94 | Good              |
 | 0.60 - 0.79 | Fair              |
@@ -1165,7 +1165,7 @@ This change will cost +$342/month
 ### AWS Budgets (configured via `terraform.tfvars`)
 
 | Setting           | Variable               | Default |
-| ----------------- | ---------------------- | ------- |
+| ------------------ | ------------------------ | --------- |
 | Monthly budget    | `monthly_budget_usd`   | $50,000 |
 | Alert threshold % | `cost_alert_threshold` | 120%    |
 
@@ -1178,7 +1178,7 @@ This change will cost +$342/month
 Mandatory tags enforced via AWS Config rules (set via `mandatory_tags` in `terraform.tfvars`):
 
 | Tag           | Purpose                |
-| ------------- | ---------------------- |
+| -------------- | ------------------------ |
 | `Environment` | Cost allocation by env |
 | `Team`        | Ownership attribution  |
 | `CostCenter`  | Financial reporting    |
@@ -1202,7 +1202,7 @@ kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 8080:80
 ### Key Dashboards
 
 | Dashboard                | URL Path       | Purpose                     |
-| ------------------------ | -------------- | --------------------------- |
+| -------------------------- | ---------------- | ------------------------------ |
 | Cost per 1K Transactions | `/d/cost`      | FinOps tracking             |
 | RPS by Microservice      | `/d/rps`       | Traffic distribution        |
 | Pod Scaling Velocity     | `/d/scale`     | Scale-up timing analysis    |
@@ -1234,7 +1234,7 @@ sum by (capacity_type) (karpenter_nodes_total)
 ### PagerDuty Escalation
 
 | Severity | Condition           | Response Time |
-| -------- | ------------------- | ------------- |
+| --------- | --------------------- | --------------- |
 | P1       | Availability < 99%  | 5 minutes     |
 | P2       | p95 latency > 500ms | 15 minutes    |
 | P3       | Error rate > 1%     | 30 minutes    |
@@ -1245,7 +1245,7 @@ sum by (capacity_type) (karpenter_nodes_total)
 ## SRE Golden Signals
 
 | Signal         | Metric                                                            | Location                        |
-| -------------- | ----------------------------------------------------------------- | ------------------------------- |
+| --------------- | -------------------------------------------------------------------- | ---------------------------------- |
 | **Latency**    | `http_request_duration_seconds`                                   | Prometheus + Grafana            |
 | **Traffic**    | `http_requests_total`                                             | Prometheus + CloudWatch         |
 | **Errors**     | `http_requests_total{status=~"5.."}`                              | Prometheus + PagerDuty          |
@@ -1355,7 +1355,7 @@ NODE_OPTIONS="--max-old-space-size=4096"
 ### CPU Limits vs Requests
 
 | Workload Type   | Request | Limit | Rationale            |
-| --------------- | ------- | ----- | -------------------- |
+| ----------------- | --------- | ------- | ----------------------- |
 | Frontend        | 250m    | 500m  | Burstable, I/O bound |
 | Product Service | 500m    | 1000m | CPU-bound search     |
 | Cart Service    | 250m    | 500m  | Redis I/O bound      |
@@ -1376,7 +1376,7 @@ kubectl get vpa -n kube-system
 ## Roadmap
 
 | Quarter | Feature                                                  | Status   |
-| ------- | -------------------------------------------------------- | -------- |
+| --------- | ----------------------------------------------------------- | ---------- |
 | Q1 2024 | AWS Fargate burst capacity for Karpenter                 | Planned  |
 | Q1 2024 | KEDA for event-driven scaling (SQS/Kafka)                | Planned  |
 | Q2 2024 | Predictive scaling based on historical White Friday data | Planned  |
@@ -1392,7 +1392,7 @@ kubectl get vpa -n kube-system
 ### Encryption
 
 | Layer             | Method                          | Key Management                 |
-| ----------------- | ------------------------------- | ------------------------------ |
+| ------------------ | ---------------------------------- | ---------------------------------- |
 | EBS volumes       | KMS CMK                         | AWS-managed + customer-managed |
 | RDS Aurora        | KMS CMK envelope encryption     | `aws_kms_key.main`             |
 | ElastiCache Redis | Encryption in transit + at rest | Auth token in Secrets Manager  |
