@@ -93,7 +93,7 @@ Traditional Cluster Autoscaler is too slow for these velocity requirements. This
 
 This project is designed for:
 
-- **Principal Cloud Architects** designing greenfield e-commerce platforms in AWS
+- **Principal Cloud Architects** designing greenfield e-com platforms in AWS
 - **SREs** building auto-scaling, self-healing production systems
 - **Platform Engineers** standardizing infrastructure-as-code across dev/staging/prod
 - **DevOps Engineers** implementing GitOps, CI/CD, and automated rollbacks
