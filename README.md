@@ -387,7 +387,7 @@ Then `scripts/rollback.sh` fires automatically:
 ```bash
 # For each microservice, prefer ArgoCD rollback, fall back to kubectl
 kubectl rollout undo deployment/payment-service
-kubectl rollout status deployment/payment-service --timeout=300s
+kubectl rollout status deployment/payment-service --timeout=299s
 ```
 
 The previous known-good version of the code is deployed. Engineers are paged. The sale continues.
